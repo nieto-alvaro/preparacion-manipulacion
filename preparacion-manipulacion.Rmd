@@ -1,0 +1,120 @@
+---
+title: "Preparacion y Manipulacion de Datos"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+```
+
+## 1. Objetivo:
+
+Limpieza y preparación del dataset para un posterios analisis.
+
+El objetivo es eliminar toda la información que no sea util.
+
+## 2. Lectura del dataset en R.
+
+Creo un directorio y descargo en el los datos que voy a utilizar
+```{r}
+#limpio el espacio de trabajo
+rm(list=ls())
+ls()
+
+#Instalo y cargo las librerias que voy a utilizar
+libs <- c("gsheet","knitr","dplyr","zoo","stringr")
+  
+for (i in libs){
+  print(i)
+  if(!require(i, character.only = TRUE)) { install.packages(i, character.only = TRUE); }
+  library(i, character.only = TRUE)
+}
+
+#Cambio el espacio de trabajo si es necesario
+#path_source <- "./RStudio/preparacion"
+#setwd(path_source)
+
+getwd()
+currentDir <- getwd()
+
+#Descargo el fichero que voy a limpiar uasando gsheet2tbl
+url <- 'https://docs.google.com/spreadsheets/d/1CDWBeqpUTBd1TkmDz_M6UGRWdHgU7LOcoiGRTvIttKA/edit#gid=0'
+dataset <- gsheet2tbl(url)
+
+#Dimensiones del datset
+dim(dataset)
+
+names(dataset)
+#Sustituyo los nombres de las variables por unos que sean mas faciles de manejar
+names(dataset) = c("year", "area", "street", "street2", "strange_html")
+
+#Elimino la ultima variable ya que no veo que tenga ningun valor para el dataset
+dataset <- dataset %>% select(year, area, street, street2)
+
+#Paso todo el dataset a minusculas
+dataset <- mutate_each(dataset, funs(tolower))
+
+#Sustituyo el caracter estraño de la variable street por un espacio
+dataset$street <- gsub("å", " ", dataset$street)
+
+#A simple vista las variable street y la variable street2 parecen iguales, voy a comprobar si es asi y puedo eliminar una de las 2
+#Creo una combinacion de los nombres de todas las variables de dos en dos
+combs <- combn(names(dataset),2)
+combs
+
+#Compruebo cual de estas combinaciones de columnas son iguales
+dups <- mapply(identical,
+               dataset[combs[1,]],
+               dataset[combs[2,]])
+dups
+#El resultado me dice que street y street2 son iguales, asique selecciono una de las dos para eliminarla
+drop <- combs[2,][dups]
+drop
+
+#Me quedo solo con las variables que no estan repetidas
+dataset <- dataset[ !names(dataset) %in% drop ]
+str(dataset)
+
+#En la variable area convierto los valores vacios en NA para poder rellenarlos con la funcion na.locf que sustituye el NA de una variable por el valor de la mas reciente anterior con valor
+is.na(dataset$area) <- dataset$area == ""
+
+dataset$area <- na.locf(dataset$area)
+
+#Voy a eliminar en la variable street caracteres tales como espacios innecesarios, signos de puntuación ...
+
+#Elimino signos de puntuación
+dataset$street <- gsub('[[:punct:]]','',dataset$street)
+
+#Espacios en blanco al principio y al final.
+dataset$street <- str_trim(dataset$street)
+
+#Mas de un espacio seguido
+dataset$street <- gsub('[[:blank:]]{2,}','',dataset$street)
+
+#Sustituyo las abreviaturas de Road (RD) y Street (ST)
+dataset$street <- gsub('\\<rd\\>','road',dataset$street)
+dataset$street <- gsub('\\<st\\>','street',dataset$street)
+
+#elimino filas repetidas
+clean.dataset <- unique(dataset)
+
+#Dimensiones del datset resultado
+dim(clean.dataset)
+
+```
+
+## 4. Exportar desde R a un fichero local, el dataset limpio resultante.
+```{r}
+outputDir <- "./output"
+if (!file.exists(outputDir)) {
+ dir.create(outputDir)
+ }
+write.table(clean.dataset,file=paste(outputDir,"clean.dataset.csv", sep="/"), sep=";",row.names=FALSE)
+```
+
+## 5. Conclusiones.
+
+Partiamos de un dataset con 5 variables y 5279 lineas, he conseguido reducirlo a un dataset de 3 variables y 3324 lineas.
+Para ello he eliminado una variable que no tenia informacion relacionada con las otras, una variable que estaba duplicada y despues de limpiar la variable street de espacios, signos de puntuación y abreviaturas he podido eliminar muchas filas que aparecian repetidas.
