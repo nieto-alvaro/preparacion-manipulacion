@@ -23,3 +23,5 @@ Se recomienda que el script tenga al menos las siguientes secciones:
 5. Conclusiones.
 
 6. Opcionalmente, se pueden incluir gráficos si se consideraran necesarios.
+
+7. Aqui puedes ver un ejemplo con datos sobre <a href="https://www.losmejoreshinchables.com/colchones-hinchables/">Colchones Hinchables</a>
